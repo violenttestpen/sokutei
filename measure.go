@@ -2,7 +2,7 @@ package main
 
 import "context"
 
-type benchmark interface {
+type timer interface {
 	GetUserTime() int64
 	GetKernelTime() int64
 	GetRealTime() int64
@@ -10,4 +10,4 @@ type benchmark interface {
 	Reset()
 }
 
-var processBenchmark benchmark
+var processTimer timer

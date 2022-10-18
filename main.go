@@ -93,13 +93,13 @@ func runBenchmark(ctx context.Context, cmdToBenchmark string) (*benchmarkResult,
 
 	fmt.Print("Initial time measurement")
 	for i := int64(0); i < runs; i++ {
-		processBenchmark.Reset()
-		if err := processBenchmark.Run(ctx, cmdParts[0], cmdParts[1:]...); err != nil {
+		processTimer.Reset()
+		if err := processTimer.Run(ctx, cmdParts[0], cmdParts[1:]...); err != nil {
 			return nil, err
 		}
-		totalUserTime += processBenchmark.GetUserTime()
-		totalKernelTime += processBenchmark.GetKernelTime()
-		elapsedRuns[i] = processBenchmark.GetRealTime()
+		totalUserTime += processTimer.GetUserTime()
+		totalKernelTime += processTimer.GetKernelTime()
+		elapsedRuns[i] = processTimer.GetRealTime()
 
 		// Calculate current estimate and ETA
 		currentEstimate = (currentEstimate*i + elapsedRuns[i]) / (i + 1)

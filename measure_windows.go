@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type windowsProcess struct {
+type windowsTimer struct {
 	userTime   int64
 	kernelTime int64
 	realTime   int64
@@ -36,10 +36,10 @@ type JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION struct {
 }
 
 func init() {
-	processBenchmark = new(windowsProcess)
+	processTimer = new(windowsTimer)
 }
 
-func (w *windowsProcess) Run(ctx context.Context, name string, arg ...string) error {
+func (w *windowsTimer) Run(ctx context.Context, name string, arg ...string) error {
 	cmd := exec.CommandContext(ctx, name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_SUSPENDED,
@@ -88,13 +88,13 @@ func (w *windowsProcess) Run(ctx context.Context, name string, arg ...string) er
 	return nil
 }
 
-func (w *windowsProcess) GetUserTime() int64 { return w.userTime * HundredNSTicks }
+func (w *windowsTimer) GetUserTime() int64 { return w.userTime * HundredNSTicks }
 
-func (w *windowsProcess) GetKernelTime() int64 { return w.kernelTime * HundredNSTicks }
+func (w *windowsTimer) GetKernelTime() int64 { return w.kernelTime * HundredNSTicks }
 
-func (w *windowsProcess) GetRealTime() int64 { return w.realTime }
+func (w *windowsTimer) GetRealTime() int64 { return w.realTime }
 
-func (w *windowsProcess) Reset() {
+func (w *windowsTimer) Reset() {
 	w.userTime = 0
 	w.kernelTime = 0
 	w.realTime = 0
