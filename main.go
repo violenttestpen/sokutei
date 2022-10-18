@@ -42,6 +42,14 @@ type benchmarkResult struct {
 
 	denominator float64
 	unit        string
+
+	meanUserTime    int64
+	userDenominator float64
+	userUnit        string
+
+	meanKernelTime    int64
+	kernelDenominator float64
+	kernelUnit        string
 }
 
 func init() {
@@ -79,19 +87,19 @@ func runBenchmark(ctx context.Context, cmdToBenchmark string) (*benchmarkResult,
 	var currentEstimate int64
 	var currentDenominator float64
 	var currentUnitEstimate string
+	var totalUserTime int64
+	var totalKernelTime int64
 	elapsedRuns := make([]int64, runs)
 
 	fmt.Print("Initial time measurement")
 	for i := int64(0); i < runs; i++ {
-		cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
-
-		startTime := time.Now()
-		err := cmd.Run()
-		elapsedRuns[i] = int64(time.Since(startTime))
-
-		if err != nil {
+		processBenchmark.Reset()
+		if err := processBenchmark.Run(ctx, cmdParts[0], cmdParts[1:]...); err != nil {
 			return nil, err
 		}
+		totalUserTime += processBenchmark.GetUserTime()
+		totalKernelTime += processBenchmark.GetKernelTime()
+		elapsedRuns[i] = processBenchmark.GetRealTime()
 
 		// Calculate current estimate and ETA
 		currentEstimate = (currentEstimate*i + elapsedRuns[i]) / (i + 1)
@@ -120,15 +128,19 @@ func runBenchmark(ctx context.Context, cmdToBenchmark string) (*benchmarkResult,
 	}
 
 	result := &benchmarkResult{
-		cmd:  cmdToBenchmark,
-		mean: totalElapsed / runs,
-		min:  minElapsed,
-		max:  maxElapsed,
+		cmd:            cmdToBenchmark,
+		mean:           totalElapsed / runs,
+		min:            minElapsed,
+		max:            maxElapsed,
+		meanUserTime:   totalUserTime / runs,
+		meanKernelTime: totalKernelTime / runs,
 	}
 
 	// Calculate standard deviation and get appropriate meansurement unit
 	result.stdev = stdev(elapsedRuns, result.mean)
 	result.denominator, result.unit = getMeasurementMetrics(result.mean)
+	result.userDenominator, result.userUnit = getMeasurementMetrics(result.meanUserTime)
+	result.kernelDenominator, result.kernelUnit = getMeasurementMetrics(result.meanKernelTime)
 	return result, nil
 }
 
@@ -163,11 +175,14 @@ func main() {
 		if err != nil {
 			fmt.Println("An error occurred during benchmark:", err)
 		} else {
-			fmt.Fprintf(color.Output, "  Time (%s ± %s):\t%s ± %s\n",
+			fmt.Fprintf(color.Output, "  Time (%s ± %s):\t%s ± %s\t%s\n",
 				color.GreenString("mean"),
 				color.GreenString("σ"),
 				color.GreenString("%.2f %s", float64(result.mean)/result.denominator, result.unit),
-				color.GreenString("%.2f %s", result.stdev/result.denominator, result.unit))
+				color.GreenString("%.2f %s", result.stdev/result.denominator, result.unit),
+				fmt.Sprintf("[User: %s, System: %s]",
+					color.CyanString("%.2f %s", float64(result.meanUserTime)/result.userDenominator, result.userUnit),
+					color.CyanString("%.2f %s", float64(result.meanKernelTime)/result.kernelDenominator, result.kernelUnit)))
 			fmt.Fprintf(color.Output, "  Range (%s … %s):\t%s … %s\t%s\n",
 				color.CyanString("min"),
 				color.RedString("max"),
